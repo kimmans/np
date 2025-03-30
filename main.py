@@ -5,8 +5,7 @@ from langchain_teddynote import logging
 from langchain_teddynote.messages import random_uuid
 from modules.agent import create_agent_executor
 from dotenv import load_dotenv
-from modules.handler import stream_handler, format_search_result
-from modules.tools import WebSearchTool
+from modules.handler import stream_handler
 
 # API KEY 정보로드
 load_dotenv()
@@ -27,54 +26,24 @@ if "messages" not in st.session_state:
 if "react_agent" not in st.session_state:
     st.session_state["react_agent"] = None
 
-# include_domains 초기화
-if "include_domains" not in st.session_state:
-    st.session_state["include_domains"] = []
-
 # 사이드바 생성
 with st.sidebar:
     # 초기화 버튼 생성
     clear_btn = st.button("대화 초기화")
-
+    
     st.markdown("made by jmango(jmhanmu@gmail.com)")
 
     # 모델 선택 메뉴
     selected_model = st.selectbox("LLM 선택", ["gpt-4o", "gpt-4o-mini"], index=0)
 
-    # 검색 결과 개수 설정
-    search_result_count = st.slider("검색 결과", min_value=1, max_value=10, value=3)
-
-    # include_domains 설정
-    st.subheader("검색 사이트 설정")
-    search_topic = st.selectbox("검색 주제", ["일반검색", "뉴스검색"], index=0)
-    new_domain = st.text_input("추가할 사이트 입력")
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        if st.button("참고 사이트 추가", key="add_domain"):
-            if new_domain and new_domain not in st.session_state["include_domains"]:
-                st.session_state["include_domains"].append(new_domain)
-
-    # 현재 등록된 도메인 목록 표시
-    st.write("등록된 사이트 목록:")
-    for idx, domain in enumerate(st.session_state["include_domains"]):
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            st.text(domain)
-        with col2:
-            if st.button("삭제", key=f"del_{idx}"):
-                st.session_state["include_domains"].pop(idx)
-                st.rerun()
-
     # 설정 버튼
     apply_btn = st.button("설정 완료", type="primary")
-
 
 @dataclass
 class ChatMessageWithType:
     chat_message: ChatMessage
     msg_type: str
     tool_name: str
-
 
 # 이전 대화를 출력
 def print_messages():
@@ -86,7 +55,6 @@ def print_messages():
         elif message.msg_type == "tool_result":
             with st.expander(f"✅ {message.tool_name}"):
                 st.markdown(message.chat_message.content)
-
 
 # 새로운 메시지를 추가
 def add_message(role, message, msg_type="text", tool_name=""):
@@ -102,18 +70,18 @@ def add_message(role, message, msg_type="text", tool_name=""):
         st.session_state["messages"].append(
             ChatMessageWithType(
                 chat_message=ChatMessage(
-                    role="assistant", content=format_search_result(message)
+                    role="assistant", content=message
                 ),
                 msg_type="tool_result",
                 tool_name=tool_name,
             )
         )
 
-
 # 초기화 버튼이 눌리면...
 if clear_btn:
     st.session_state["messages"] = []
     st.session_state["thread_id"] = random_uuid()
+
 # 이전 대화 기록 출력
 print_messages()
 
@@ -125,20 +93,15 @@ warning_msg = st.empty()
 
 # 설정 버튼이 눌리면...
 if apply_btn:
-    tool = WebSearchTool().create()
-    tool.max_results = search_result_count
-    tool.include_domains = st.session_state["include_domains"]
-    tool.topic = search_topic
     st.session_state["react_agent"] = create_agent_executor(
         model_name=selected_model,
-        tools=[tool],
+        tools=[],  # 웹 검색 도구 제거
     )
     st.session_state["thread_id"] = random_uuid()
 
 # 만약에 사용자 입력이 들어오면...
 if user_input:
     agent = st.session_state["react_agent"]
-    # Config 설정
 
     if agent is not None:
         config = {"configurable": {"thread_id": st.session_state["thread_id"]}}
@@ -163,13 +126,6 @@ if user_input:
 
             # 대화기록을 저장한다.
             add_message("user", user_input)
-            for tool_arg in tool_args:
-                add_message(
-                    "assistant",
-                    tool_arg["tool_result"],
-                    "tool_result",
-                    tool_arg["tool_name"],
-                )
             add_message("assistant", agent_answer)
     else:
         warning_msg.warning("사이드바에서 설정을 완료해주세요.")
