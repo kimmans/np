@@ -15,7 +15,7 @@ logging.langsmith("jmango-yp")
 
 st.title("영농계획서 💬")
 st.markdown(
-    "청년농업인 영농계획서 작성을 도와드립니다"
+    "영농계획서 작성을 도와드립니다"
 )
 
 # 대화기록을 저장하기 위한 용도로 생성
