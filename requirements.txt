@@ -3,4 +3,5 @@ langchain-openai>=0.0.2
 langgraph>=0.0.10
 streamlit>=1.32.0
 openai>=1.12.0
-langchain-teddynote>=0.0.1 
+langchain-teddynote>=0.0.1
+python-dotenv>=1.0.0 
